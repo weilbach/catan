@@ -39,7 +39,7 @@ from math import sqrt
 
 
 # Hough Circles attempt
-img = cv2.imread('CatanBoardStockimage.jpg')
+img = cv2.imread('CatanBoardStock2.jpg')
 print(img.shape)
 # scale_percent = .2
 width = int(970)
@@ -67,19 +67,23 @@ count = 0
 
 for i in circles[0, :]:
 
-    # circle_img = np.zeros((dim[1], dim[0]), np.uint8)
-    # cv2.circle(circle_img, (i[0], i[1]), i[2], 1, thickness=-1)
+    circle_img = np.zeros((dim[1], dim[0]), np.uint8)
+    cv2.circle(circle_img, (i[0], i[1]), i[2], 1, thickness=-1)
     # mean_val_test = cv2.mean(gimg, mask=circle_img)
-    # masked_data = cv2.bitwise_and(img, img, mask=circle_img)
-    
-    cv2.circle(img, (i[0], i[1]), i[2], (255,0,0), 2)
+    masked_data = cv2.bitwise_and(img, img, mask=circle_img)
+    cv2.imwrite('./numbers/take_2_{}.jpg'.format(count), masked_data)
+    cv2.imshow('Detected', masked_data)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    count += 1
+    # cv2.circle(img, (i[0], i[1]), i[2], (255,0,0), 2)
     # print('Circle: ', count)
     # src1_mask = cv2.cvtColor(masked_data, cv2.COLOR_GRAY2BGR)#change mask to a 3 channel image 
 
 
-cv2.imshow('Detected numbers', img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# cv2.imshow('Detected numbers', img)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
 
 
 
