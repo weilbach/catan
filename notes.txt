@@ -7,3 +7,5 @@ param1=60
 param2=25
 minRadius=20
 maxRadius=30
+
+Upping param1 gives less circles
