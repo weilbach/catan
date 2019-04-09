@@ -1,0 +1,9 @@
+Good size: 850, 970
+
+Best Hough Circle Results for stock image:
+dp=1
+minDist=20
+param1=60
+param2=25
+minRadius=20
+maxRadius=30
