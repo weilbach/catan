@@ -1,9 +1,7 @@
 import numpy as np
 from sklearn.datasets import fetch_openml
-
 from network import ConvNet2
 from network2 import ConvNet
-from solver import Solver
 import matplotlib.pyplot as plt
 import pickle as pickle
 import os
@@ -11,6 +9,11 @@ import cv2
 from skimage.io import imread, imsave
 from skimage.feature import blob_log
 from skimage.color import rgb2gray
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision
+from scipy.misc import imresize
 
 
 def load_data(flatten=False):
@@ -26,17 +29,16 @@ def load_data(flatten=False):
         if filename != 'DS_Store':
             if len(filename) < 4:
                 full_path = path + img
-                # print(full_path)
                 image = imread(full_path)
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 train_data.append(image)
 
-                # train_feature = np.zeros(11)
-                # train_feature[int(img[0]) - 2] = 1
-                # train_labels.append(train_feature)
+                train_feature = np.zeros(11)
+                train_feature[int(img[0]) - 2] = 1
+                train_labels.append(train_feature)
 
-                train_labels.append(int(img[0]))
-                print(int(img[0]))
+                # train_labels.append(int(img[0]))
+                # print(int(img[0]))
             else:
                 full_path = path + img
                 # print(full_path)
@@ -44,12 +46,12 @@ def load_data(flatten=False):
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 train_data.append(image)
 
-                # train_feature = np.zeros(11)
-                # train_feature[int(img[0:2]) - 2] = 1
-                # train_labels.append(train_feature)
+                train_feature = np.zeros(11)
+                train_feature[int(img[0:2]) - 2] = 1
+                train_labels.append(train_feature)
 
-                train_labels.append(int(img[0:2]))
-                print(int(img[0:2]))
+                # train_labels.append(int(img[0:2]))
+                # print(int(img[0:2]))
 
     
     for img in os.listdir(path1):
@@ -62,11 +64,11 @@ def load_data(flatten=False):
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 test_data.append(image)
 
-                # test_feature = np.zeros(11)
-                # test_feature[int(img[0]) - 2] = 1
-                # test_labels.append(test_feature)
+                test_feature = np.zeros(11)
+                test_feature[int(img[0]) - 2] = 1
+                test_labels.append(test_feature)
 
-                test_labels.append(int(img[0]))
+                # test_labels.append(int(img[0]))
                 # print(int(img[0]))
             else:
                 full_path = path1 + img
@@ -75,11 +77,11 @@ def load_data(flatten=False):
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 test_data.append(image)
 
-                # test_feature = np.zeros(11)
-                # test_feature[int(img[0:2]) - 2] = 1
-                # test_labels.append(test_feature)
+                test_feature = np.zeros(11)
+                test_feature[int(img[0:2]) - 2] = 1
+                test_labels.append(test_feature)
 
-                test_labels.append(int(img[0:2]))
+                # test_labels.append(int(img[0:2]))
                 # print(int(img[0:2]))
    
     test_data = np.array(test_data)
@@ -129,62 +131,72 @@ def load_checkpoint():
     
     return checkpoints
 
-def get_graphs(data):
-    checkpoints = load_checkpoint()
-    train_losses = []
-    val_losses = []
-    for cp in checkpoints:
-        model = cp['model']
-        solver = Solver(model, data, update_rule='sgd',
-                    optim_config={'learning_rate': 1e-2,},
-                    lr_decay=1.0, num_epochs=10,
-                    batch_size=16, print_every=1)
-        _ = solver.check_accuracy(data['X_train'], data['y_train'], num_samples=1000)
-        #lets print the val loss history and the self.loss history for all of them when it's done
-        for i in range(0, len(solver.loss_history), 3125):
-          # val_loss = np.mean(val_losses[i:i+iterations_per_epoch])
-          train_loss = np.mean(solver.loss_history[i:i+3125])
-          # avg_val_loss.append(val_loss)
-          train_losses.append(train_loss)
+def _train_epoch(data_loader, model, criterion, optimizer):
+    """
+    Train the `model` for one epoch of data from `data_loader`
+    Use `optimizer` to optimize the specified `criterion`
+    """
+    for i, (X, y) in enumerate(data_loader):
+        optimizer.zero_grad()
 
-        #this might be all i need gonna need to print to make sure though
-        # train_losses.append(np.mean(solver.loss_history))
-        val_losses = solver.val_loss
-    
-    return train_losses, val_losses
+        output = model(X)
+        loss = criterion(output, y)
+        loss.backward()
+        optimizer.step()
+
+def resize(X):
+
+    resized = []
+    for img in X:
+        image_dim = 28
+        resize = imresize(img, (image_dim, image_dim, 3), interp='bicubic')
+        resized.append(resize)
+
+    resized = np.array(resized)
+    return resized
                
 
-def train():
-    # load data
-    print('loading data')
+# def train():
+#     # load data
+#     print('loading data')
 
     
-    data = load_data()
-    model = ConvNet2()
+#     data = load_data()
+#     model = ConvNet()
+#     criterion = nn.LogSoftmax()
 
-    # intialize solver
-    print('initializing solver')
-
-    solver = Solver(model, data, update_rule='sgd',
-                    optim_config={'learning_rate': 1e-3,},
-                    lr_decay=1e-2, num_epochs=3,
-                    batch_size=1, print_every=1)
-
-
-    # # start training
-    print('starting training')
-    solver.train()
-
-    # # plot losses and accuracies
-    # plot_performance(epochs, validation_losses, training_losses, train_acc_hist, val_acc_hist)
-
-    # report test accuracy
-    print(data['y_test'])
-    acc = solver.check_accuracy(data['X_test'], data['y_test'])
-    print("Test accuracy: {}".format(acc))
-
-    
+   
 
 
 if __name__=="__main__":
-    train()
+    data = load_data()
+    X_train = data['X_train']
+    y_train = data['y_train']
+    X_test = data['X_test']
+    y_test = data['y_test']
+    X_val = data['X_val']
+    y_val = data['y_val']
+
+    X_train = resize(X_train)
+    X_test = resize(X_test)
+    X_val = resize(X_val)
+
+    model = ConvNet()
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+    
+    for epoch in range(0,5):
+        i = 0
+        for image,label in X_train, y_train:
+            out = model(image)
+            loss = criterion(out, label)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        
+            if (i+1)%100 == 0:
+                print("Epoch[{}/{}], step[{}/{}], loss={:0.4f}".format(epoch+1,5,i+1,len(X_train),loss.item()))
+            i += 1
+
+    torch.save(model.state_dict(), 'model.ckpt')
