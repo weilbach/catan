@@ -127,6 +127,8 @@ def predictions(logits):
     Returns:
         the predicted class output as a PyTorch Tensor
     """
+    #this whole function messed me up so we aren't using it rn
+
     tensors = []
     max_val = logits[0]
     max_val = max_val[0]
@@ -181,10 +183,8 @@ def _evaluate_epoch(X_train, y_train, X_val, y_val, model, criterion, epoch):
     Evaluates the `model` on the train and validation set.
     """
     print('evaluating epoch')
-    y_true, y_pred = [], []
     correct, total = 0, 0
     running_loss = []
-    losses = 0
     for i, image in enumerate(X_train):
         with torch.no_grad():
             label = y_train[i]
@@ -197,20 +197,12 @@ def _evaluate_epoch(X_train, y_train, X_val, y_val, model, criterion, epoch):
             image = image.unsqueeze(0)
 
             output = model(image)
-            # predicted = predictions(output.data)
-            # y_true.append(label)
-            # y_pred.append(predicted)
             total += label.size(0)
 
             label = label.float()
-            # correct += (predicted == label).sum().item()
-            # correct += predicted == label
             correct_output = np.argmax(output)
             if float(label) == float(correct_output):
                 correct += 1
-            # print('correct is : ' + str((predicted == label).sum().item()))
-            # loss = criterion(output, label)
-            # losses += loss.item()
 
             label = label.long()
             running_loss.append(criterion(output, label).item())
@@ -218,10 +210,8 @@ def _evaluate_epoch(X_train, y_train, X_val, y_val, model, criterion, epoch):
 
     train_loss = np.mean(running_loss)
     train_acc = correct / total
-    # train_acc = losses / total
     print('training loss: ' + str(train_loss))
     print('train acc: ' + str(train_acc))
-    y_true, y_pred = [], []
     correct, total = 0, 0
     running_loss = []
     for i, image in enumerate(X_val):
@@ -236,12 +226,13 @@ def _evaluate_epoch(X_train, y_train, X_val, y_val, model, criterion, epoch):
             image = image.unsqueeze(0)
 
             output = model(image)
-            predicted = predictions(output.data)
-            y_true.append(label)
-            y_pred.append(predicted)
             total += label.size(0)
+
             label = label.float()
-            correct += (predicted == label).sum().item()
+            correct_output = np.argmax(output)
+            if float(label) == float(correct_output):
+                correct += 1
+
             label = label.long()
             running_loss.append(criterion(output, label).item())
     val_loss = np.mean(running_loss)
@@ -321,10 +312,10 @@ if __name__=="__main__":
 
         _evaluate_epoch(X_train, y_train, X_val, y_val, model, criterion, epoch)
 
-        test(X_test, y_test, model, criterion)
 
         print('finished epoch ' + str(epoch))
     
     print('finished training')
+    test(X_test, y_test, model, criterion)
 
 
