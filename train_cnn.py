@@ -1,182 +1,53 @@
 import numpy as np
-from sklearn.datasets import fetch_openml
 from network import ConvNet2
 from network2 import ConvNet
 import matplotlib.pyplot as plt
-import pickle as pickle
+from dataset import plot_performance, load_checkpoint, resize, load_data, save_checkpoint
 import os
 import cv2
 from skimage.io import imread, imsave
-from skimage.feature import blob_log
 from skimage.color import rgb2gray
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
-from scipy.misc import imresize
 import utils
+import collections
 
 
-def load_data(flatten=False):
-    data = {}
-    path1 = './train_numbers/'
-    path = './test_numbers/'
-    train_data = []
-    train_labels = []
-    test_data = []
-    test_labels = []
-    for img in os.listdir(path):
-        filename = img.strip('.jpg')
-        if filename != 'DS_Store':
-            if len(filename) < 4:
-                full_path = path + img
-                image = imread(full_path)
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                train_data.append(image)
 
-                # train_feature = np.zeros(11)
-                # train_feature[int(img[0]) - 2] = 1
-                # train_labels.append(train_feature)
-
-                train_labels.append(int(img[0]) - 2)
-            else:
-                full_path = path + img
-                image = imread(full_path)
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                train_data.append(image)
-
-                # train_feature = np.zeros(11)
-                # train_feature[int(img[0:2]) - 2] = 1
-                # train_labels.append(train_feature)
-
-                train_labels.append(int(img[0:2]) - 2)
-
-    
-    for img in os.listdir(path1):
-        filename = img.strip('.jpg')
-        if filename != 'DS_Store':
-            if len(filename) < 4:
-                full_path = path1 + img
-                image = imread(full_path)
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                test_data.append(image)
-
-                # test_feature = np.zeros(11)
-                # test_feature[int(img[0]) - 2] = 1
-                # test_labels.append(test_feature)
-
-                test_labels.append(int(img[0]) - 2)
-
-            else:
-                full_path = path1 + img
-                image = imread(full_path)
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                test_data.append(image)
-
-                # test_feature = np.zeros(11)
-                # test_feature[int(img[0:2]) - 2] = 1
-                # test_labels.append(test_feature)
-
-                test_labels.append(int(img[0:2]) - 2)
-   
-    test_data = np.array(test_data)
-    train_data = np.array(train_data)
-
-   
-    data['X_train'] = train_data
-    data['y_train'] = np.array(train_labels)
-    data['X_test'] = test_data
-    data['y_test'] = np.array(test_labels)
-    data['X_val'] = train_data[:5]
-    data['y_val'] = np.array(train_labels[:5])
-
-    return data
-
-def plot_performance(num_epochs, val_losses, train_losses, train_accuracies, val_accuracies):
-
-    plt.xlabel('epoch number')
-    plt.ylabel('avg loss')
-
-    plt.plot(num_epochs, val_losses, color='blue', linestyle='dashed', label='val_loss')
-    plt.plot(num_epochs, train_losses, color='yellow', linestyle='dashed', label='train_loss')
-    plt.legend(loc='upper right')
-    plt.savefig('visualization2.png')
-    plt.show()
-
-    plt.ylabel('average accuracy')
-    plt.plot(num_epochs, train_accuracies, color='yellow', linestyle='dashed', label='training_accuracy')
-    plt.plot(num_epochs, val_accuracies, color='blue', linestyle='dashed', label='val_accuracy')
-    plt.legend(loc='upper right')
-    plt.savefig('visualization3.png')
-    plt.show()
-
-def load_checkpoint():
-    checkpoints = []
-    for i in range(0, 3):
-        filename = '%s_epoch_%d.pkl' % ('extras', i)
-        with open(filename, 'rb') as cp_file:
-            cp = pickle.load(cp_file)
-            checkpoints.append(cp)
-    
-    return checkpoints
-
-def predictions(logits):
-    """
-    Given the network output, determines the predicted class index
-
-    Returns:
-        the predicted class output as a PyTorch Tensor
-    """
-    #this whole function messed me up so we aren't using it rn
-
-    tensors = []
-    max_val = logits[0]
-    max_val = max_val[0]
-    best_index = 0
-    for logit in logits:
-        # max_val = logit[0]
-        # best_index = 0
-        # print(logit)
-        for count, val in enumerate(logit):
-            # print(val)
-            # print(float(val))
-            # val = float(val)
-            if val > max_val:
-                max_val = val
-                best_index = count
-            # tensors.append(best_index)
-
-    
-    # tensors = torch.Tensor(tensors)
-    # print(tensors)
-    # tensors = torch.Tensor(best_index)
-
-    return best_index
-
-    return tensors
-
-def _train_epoch(X_train, y_train, model, criterion, optimizer):
+def _train_epoch(X_train, y_train, model, criterion, optimizer, batch_size, iterations):
     """
     Train the `model` for one epoch of data from `data_loader`
     Use `optimizer` to optimize the specified `criterion`
     """
     model = model.train()
-    for i, image in enumerate(X_train):
-        label = y_train[i]
-        label = torch.from_numpy(np.asarray(label))
-        label = label.type(torch.LongTensor)
-        label = torch.tensor([label])
 
-        image = torch.from_numpy(image)
-        image = image.type(torch.FloatTensor)
-        image = image.unsqueeze(0)
+    #create batch size for sgd
+    num_train = X_train.shape[0]
+    batch_mask = np.random.choice(num_train, batch_size)
+    train_batch = X_train[batch_mask]
+    #lmao why is that not already an np array
+    y_train = np.array(y_train)
+    batch_labels = np.asarray(y_train[batch_mask])
 
-        optimizer.zero_grad()
-        output = model(image)
+    for it in range(0, iterations):
+        for i, image in enumerate(train_batch):
+            label = batch_labels[i]
+            label = torch.from_numpy(np.asarray(label))
+            label = label.type(torch.LongTensor)
+            label = torch.tensor([label])
 
-        loss = criterion(output, label)
-        loss.backward()
-        optimizer.step()
+            image = torch.from_numpy(image)
+            image = image.type(torch.FloatTensor)
+            image = image.unsqueeze(0)
+
+            optimizer.zero_grad()
+            output = model(image)
+
+            loss = criterion(output, label)
+            loss.backward()
+            optimizer.step()
 
 def _evaluate_epoch(X_train, y_train, X_val, y_val, model, criterion, epoch):
     """
@@ -206,7 +77,6 @@ def _evaluate_epoch(X_train, y_train, X_val, y_val, model, criterion, epoch):
 
             label = label.long()
             running_loss.append(criterion(output, label).item())
-            
 
     train_loss = np.mean(running_loss)
     train_acc = correct / total
@@ -235,24 +105,27 @@ def _evaluate_epoch(X_train, y_train, X_val, y_val, model, criterion, epoch):
 
             label = label.long()
             running_loss.append(criterion(output, label).item())
+
     val_loss = np.mean(running_loss)
     val_acc = correct / total
     print('val loss: ' + str(val_loss))
     print('val acc: ' + str(val_acc))
-    # stats.append([val_acc, val_loss, train_acc, train_loss])
-    # utils.log_cnn_training(epoch, stats)
-    # utils.update_cnn_training_plot(axes, epoch, stats)
+    
+    return val_loss, train_loss, val_acc, train_acc
 
-def test(X_test, y_test, model, criterion):
+def test(X_test, y_test, model):
     '''
     Function for testing.
     '''
     correct = 0.
     total = 0
+    outputs = []
+    labels = []
+    predicted = []
     with torch.no_grad():
         model = model.eval()
         for i, image in enumerate(X_test):
-            label = y_train[i]
+            label = y_test[i]
             label = torch.from_numpy(np.asarray(label))
             label = label.type(torch.LongTensor)
             label = torch.tensor([label])
@@ -265,24 +138,98 @@ def test(X_test, y_test, model, criterion):
             total += label.size(0)
 
             label = label.float()
-            correct_output = np.argmax(output)
-            if float(label) == float(correct_output):
+            pred = np.argmax(output)
+            if float(label) == float(pred):
                 correct += 1
 
-            label = label.long()
+            outputs.append(output)
+            labels.append(label)
+            predicted.append(float(pred))
     print('test accuracy is')
     print(correct / total)
 
-def resize(X):
+    return outputs, labels, predicted
 
-    resized = []
-    for img in X:
-        image_dim = 50
-        resize = imresize(img, (image_dim, image_dim, 3), interp='bicubic')
-        resized.append(resize)
+def final_prediction(outputs, labels, predicted):
 
-    resized = np.array(resized)
-    return resized
+    #this is quite the work in progress
+    
+    all_numbers = []
+    found_indices = []
+    ones = {}
+    twos = {}
+    
+
+    count = 0
+    #should go through outputs and select most positive ones to numbers
+    while(count != 18):
+        highest_guess = 0
+        best_index = None
+        for ind, output in enumerate(outputs):
+            ind_best = np.argmax(output[0])
+            best = output[0][ind_best]
+            if best > highest_guess:
+                highest_guess = best
+                best_index = ind
+        
+        if best_index == 0 or best_index == 10:
+            if len(ones) == 0:
+                ones[best_index] = ind
+            else:
+                output[0][best_index] = -100.0
+        else:
+            if len(twos[best_index]) < 2:
+                if best_index not in twos:
+                    twos[best_index] == [ind]
+                else:
+                    twos[best_index].append(ind)
+            else:
+                output[0][best_index] = -100
+        
+        count2 = 0
+        for key in twos:
+            for _ in twos[key]:
+                count2 += 1
+        
+        count = len(ones) + count2
+    
+    return outputs
+
+def test_final(outputs, labels):
+    correct = 0.
+    total = 0
+    # outputs = []
+    # labels = []
+    # predicted = []
+    with torch.no_grad():
+        model = model.eval()
+        for i, output in enumerate(outputs):
+            label = y_test[i]
+            label = torch.from_numpy(np.asarray(label))
+            label = label.type(torch.LongTensor)
+            label = torch.tensor([label])
+
+            # image = torch.from_numpy(image)
+            # image = image.type(torch.FloatTensor)
+            # image = image.unsqueeze(0)
+
+            # output = model(image)
+            total += label.size(0)
+
+            label = label.float()
+            pred = np.argmax(output)
+            if float(label) == float(pred):
+                correct += 1
+
+            # outputs.append(output)
+            # labels.append(label)
+            # predicted.append(float(pred))
+    print('test accuracy is')
+    print(correct / total)
+        
+
+
+
 
 if __name__=="__main__":
 
@@ -293,29 +240,70 @@ if __name__=="__main__":
     y_test = data['y_test']
     X_val = data['X_val']
     y_val = data['y_val']
+    X_perf = data['X_perf']
+    y_perf = data['y_perf']
 
     X_train = resize(X_train)
     X_test = resize(X_test)
     X_val = resize(X_val)
+    X_perf = resize(X_perf)
     X_train = X_train.transpose(0, 3, 1, 2)
     X_test = X_test.transpose(0, 3, 1, 2)
     X_val = X_val.transpose(0, 3, 1, 2)
+    X_perf = X_perf.transpose(0, 3, 1, 2)
+
+    print(len(X_train))
+    print(len(X_test))
+    print(len(X_val))
+    print(len(X_perf))
 
     model = ConvNet()
     print('finished model')
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-    for epoch in range(0,20):
+    val_loss_history = []
+    train_loss_history = []
+    val_acc_history = []
+    train_acc_history = []
+    num_epochs = 75
 
-        _train_epoch(X_train, y_train, model, criterion, optimizer)
+    # for epoch in range(0, num_epochs):
+    #     batch_size = 16
 
-        _evaluate_epoch(X_train, y_train, X_val, y_val, model, criterion, epoch)
+    #     _train_epoch(X_train, y_train, model, criterion, optimizer, batch_size, 10)
 
+    #     val_loss, train_loss, val_acc, train_acc = _evaluate_epoch(X_train, y_train, X_val, y_val, model, criterion, epoch)
+    #     val_loss_history.append(val_loss)
+    #     train_loss_history.append(train_loss)
+    #     val_acc_history.append(val_acc)
+    #     train_acc_history.append(train_acc)
 
-        print('finished epoch ' + str(epoch))
+    #     print('finished epoch ' + str(epoch))
+
+    # save_checkpoint(model, .001, epoch, val_acc_history, train_acc_history, val_loss_history, train_loss_history)
     
+    checkpoints = load_checkpoint('yunk', 74)
+    model = checkpoints[0]['model']
     print('finished training')
-    test(X_test, y_test, model, criterion)
+    test(X_test, y_test, model) #test accuracy
+
+
+    
+    print('testing perfect data')
+    # checkpoints = load_checkpoint('bunk', epoch)
+    # model = checkpoints[0]['model']
+
+    outputs, labels, predicted = test(X_perf, y_perf, model)
+
+    #collect final predictions, outputs will change
+    outputs = final_prediction(outputs, labels, predicted)
+    test_final(outputs, labels)
+
+    #graphing
+    # epoch_list = list(range(0, 60))
+
+    # plot_performance(epoch_list, val_loss_history, train_loss_history, val_acc_history, train_acc_history)
+
 
 

@@ -21,7 +21,8 @@ class ConvNet(nn.Module):
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1,padding=0)
         self.conv2 = nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1,padding=0)
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, stride=1,padding=0)
-        self.fc1 = nn.Linear(15488*4, 128)
+        self.fc1 = nn.Linear(61952, 128)
+        #change back to 12800 for the pool layer
         self.fc2 = nn.Linear(128, 64)
         self.fc3 = nn.Linear(64, 32)
         self.fc4 = nn.Linear(32, 11)
@@ -43,20 +44,21 @@ class ConvNet(nn.Module):
         
     
     def forward(self, x):
+        # x = F.relu(self.pool(self.conv1(x)))
         x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+        # x = F.relu(self.pool(self.conv2(x)))
+        x = F.relu(self.conv2(x))  
         x = F.relu(self.conv3(x))
         # x = self.pool(x)
 
 
-        x = x.view(-1, 15488*4)
+        x = x.view(-1, 61952)
 
         # fully connected layers
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         x = self.fc4(x)
-        # x = self.fc5(x)
 
         return x
         
