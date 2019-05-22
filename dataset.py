@@ -1,9 +1,3 @@
-"""
-EECS 445 - Introduction to Machine Learning
-Winter 2019 - Project 2
-Landmarks Dataset
-    Class wrapper for interfacing with the dataset of landmark images
-"""
 import os
 import numpy as np
 import torch
@@ -71,14 +65,12 @@ def load_data(flatten=False):
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             perf_data.append(image)
             perf_labels.append(int(number) - 2)
-    
 
    
     test_data = np.array(test_data)
     train_data = np.array(train_data)
     val_data = np.array(val_data)
     perf_data = np.array(perf_data)
-
 
    #put all the data in a dictionary
     data['X_train'] = train_data
@@ -100,19 +92,19 @@ def plot_performance(num_epochs, val_losses, train_losses, val_accuracies, train
     plt.plot(num_epochs, val_losses, color='blue', linestyle='dashed', label='val_loss')
     plt.plot(num_epochs, train_losses, color='yellow', linestyle='dashed', label='train_loss')
     plt.legend(loc='upper right')
-    plt.savefig('visualization2.png')
+    plt.savefig('visualization4.png')
     plt.show()
 
     plt.ylabel('accuracy')
     plt.plot(num_epochs, train_accuracies, color='yellow', linestyle='dashed', label='training_accuracy')
     plt.plot(num_epochs, val_accuracies, color='blue', linestyle='dashed', label='val_accuracy')
     plt.legend(loc='upper right')
-    plt.savefig('visualization3.png')
+    plt.savefig('visualization5.png')
     plt.show()
 
 def load_checkpoint(name, epoch):
+
     checkpoints = []
-    # for i in range(74, 75):
     filename = '%s_epoch_%d.pkl' % (name, epoch)
     with open(filename, 'rb') as cp_file:
         cp = pickle.load(cp_file)
