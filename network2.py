@@ -1,6 +1,4 @@
 import numpy as np
-from layers import *
-import pdb
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -22,7 +20,7 @@ class ConvNet(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1,padding=0)
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, stride=1,padding=0)
         self.fc1 = nn.Linear(61952, 128)
-        #change back to 12800 for the pool layer
+        #need size 12800 for one pool
         self.fc2 = nn.Linear(128, 64)
         self.fc3 = nn.Linear(64, 32)
         self.fc4 = nn.Linear(32, 11)
@@ -44,6 +42,7 @@ class ConvNet(nn.Module):
         
     
     def forward(self, x):
+        #various attempts at pooling are shown
         # x = F.relu(self.pool(self.conv1(x)))
         x = F.relu(self.conv1(x))
         # x = F.relu(self.pool(self.conv2(x)))
